@@ -1,0 +1,275 @@
+use super::ast_def::*;
+
+grammar;
+
+// Skip whitespace and comments, then start default parsing
+match {
+    r"\s*" => {},
+    r"//[^\n\r]*[\n\r]*" => {},
+    // /*  
+    r"/\*([^*]|\*+[^*/])*\*+/" => {},
+    _
+}
+
+// Compile Startpoint(public) -> CompileInitParser
+pub CompileInit: CompileInit = {
+    <GlobalvarOrFuncDef: (DeclOrFunc)*> => CompileInit{
+        init: GlobalvarOrFuncDef,
+    },
+}
+
+DeclOrFunc: DeclOrFunc = {
+    <Decl> => DeclOrFunc::Decl(<>),
+    <FuncDef> => DeclOrFunc::Func(<>),
+}
+
+Decl: Decl = {
+    <ConstDecl> => Decl::Const(<>),
+    <VarDecl> => Decl::Var(<>),
+}
+
+ConstDecl: ConstDecl = {
+    "const" "int" <defs: CommaP<ConstDef>> ";" => ConstDecl{
+        defs: defs,
+    },
+}
+
+ConstDef: ConstDef = {
+    <name:IDENT> <dims: ("[" <ConstExpr> "]")*> "=" <init: ConstInitVal> => ConstDef{
+        id: name,
+        dims: dims,
+        init_val: init,
+    },
+}
+
+ConstInitVal: ConstInitVal = {
+    <expr: ConstExpr> => ConstInitVal::Expr(expr),
+    "{" "}" => ConstInitVal::List(Vec::new()),
+    "{" <initlist: CommaP<ConstInitVal>> "}" => ConstInitVal::List(initlist),
+}
+
+VarDecl: VarDecl = {
+    "int" <defs: CommaP<VarDef>> ";" => VarDecl{
+        defs: defs,
+    },
+}
+
+VarDef: VarDef = {
+    <name: IDENT> <dims: ("[" <ConstExpr> "]")*> <init: ("=" <InitVal>)?> => VarDef{
+        id: name,
+        dims: dims,
+        init_val: init,
+    },
+}
+
+InitVal: InitVal = {
+    <expr: Expr> => InitVal::Expr(expr),
+    "{" "}" => InitVal::List(Vec::new()),
+    "{" <initlist: CommaP<InitVal>> "}" => InitVal::List(initlist),
+}
+
+FuncDef: FuncDef = {
+    <FuncHead: FuncHead> <FuncArgs: FuncArgs> ")" <FuncBody: Block> => FuncDef{
+        func_type: FuncHead.0,
+        func_name: FuncHead.1, 
+        func_params: FuncArgs, 
+        func_body: FuncBody,
+    },
+}
+
+FuncHead: (FuncType, String) = { // 不能分开写 会导致LR(1)约束不成立  eg: 在DeclOrFunc下 连续的两个token int Ident无法区分是Func还是Decl 合并后使得“int Ident (”作为一个token 故可以区分
+    "void" <id:IDENT> "(" => (FuncType::Void, id),
+    "int" <id:IDENT> "(" => (FuncType::Int, id),
+}
+
+FuncArgs = Comma<Param>;
+
+Param: Param = {
+    "int" <name: IDENT> <ardim: ("[]" <("[" <ConstExpr> "]")*>)> => Param{  // ? means optional
+        param_id: name,
+        param_dims: Some(ardim),  // [] => Vec::new(), [][1][2][3] => Vec::(1,2,3);
+    },
+    "int" <name: IDENT> => Param{
+        param_id: name,
+        param_dims: None,  // [] => None
+    },
+}
+
+Block: Block = {
+    "{" <BlockItems: (BlockItem)*> "}" => Block{
+        items: BlockItems
+    },
+}
+
+BlockItem: BlockItem = {
+    // Decl => BlockItem::Decl(<>),
+    Stmt => BlockItem::Stmt(<>),
+}
+
+Stmt: Stmt = {
+
+    <lval: LVal> "=" <exp: Expr> ";" => Stmt::AssignStmt(AssignStmt{
+        lval: lval,
+        expr: exp,
+    }),
+
+    <exp: (Expr)?> ";" => Stmt::ExprStmt(ExprStmt{
+        expr: exp,
+    }),
+
+    "return" <ReturnExpr: (Expr)?> ";" => Stmt::ReturnStmt(ReturnStmt{
+        expr: ReturnExpr,
+    }),
+
+    <block: Block> => Stmt::BlockStmt(block),
+
+
+
+}
+//Lv.1
+Expr: Expr = {
+    <expr: LOrExpr> => Expr::LOr(expr),
+}
+
+LOrExpr: LOrExpr = {
+    <expr: LAndExpr> => LOrExpr::LAndExpr(expr),
+    <lexp: LOrExpr> "||" <rexp: LAndExpr> => {
+        LOrExpr::LOrExpr(Box::new(lexp), rexp)
+    },
+}
+
+LAndExpr: LAndExpr = {
+    <expr: EqExpr> => LAndExpr::EqExpr(expr),
+    <lexp: LAndExpr> "&&" <rexp: EqExpr> => {
+        LAndExpr::LAndExpr(Box::new(lexp), rexp)
+    },
+}
+
+EqExpr: EqExpr = {
+    <expr: RelExpr> => EqExpr::RelExpr(expr),
+    <lexp: EqExpr> <op: EqOp> <rexp: RelExpr> => {
+        EqExpr::EqExpr(Box::new(lexp), op, rexp)
+    },
+}
+
+EqOp: EqOp = {
+    "==" => EqOp::Eq,
+    "!=" => EqOp::Ne,
+}
+
+RelExpr: RelExpr = {
+    <expr: AddExpr> => RelExpr::AddExpr(expr),
+    <lexp: RelExpr> <op: RelOp> <rexp: AddExpr> => {
+        RelExpr::RelExpr(Box::new(lexp), op, rexp)
+    },
+}
+
+RelOp: RelOp = {
+    "<" => RelOp::Lt,
+    "<=" => RelOp::Le,
+    ">" => RelOp::Gt,
+    ">=" => RelOp::Ge,
+}
+
+AddExpr: AddExpr = {
+    <expr: MulExpr> => AddExpr::MulExpr(expr),
+    <lexp: AddExpr> <op: AddOp> <rexp: MulExpr> => {
+        AddExpr::AddAndMul(Box::new(lexp), op, rexp)
+    },
+}
+
+AddOp: AddOp = {
+    "+" => AddOp::Add,
+    "-" => AddOp::Minus,
+}
+
+MulExpr: MulExpr = {
+    <expr: UnaryExpr> => MulExpr::UnaryExpr(expr),
+    <lexp: MulExpr> <op: MulOp> <rexp: UnaryExpr> => {
+        MulExpr::MulAndUnary(Box::new(lexp), op, rexp)
+    },
+}
+
+MulOp: MulOp = {
+    "*" => MulOp::Mul,
+    "/" => MulOp::Div,
+    "%" => MulOp::Mod,
+}
+
+UnaryExpr: UnaryExpr = {
+    <expr: PrimExpr> => UnaryExpr::PrimExpr(expr),
+    <op: UnaryOp> <expr: UnaryExpr> => UnaryExpr::UnaryExpr(op, Box::new(expr)),
+    <FuncCall> => UnaryExpr::FuncCall(<>),
+}
+
+FuncCall: FuncCall = {
+    <name: IDENT> "(" <args: Comma<Expr>> ")" =>{
+        FuncCall{
+            funcid: name,
+            args: args,
+        }
+    }
+}
+
+UnaryOp: UnaryOp = {
+    "+" => UnaryOp::Pos,
+    "-" => UnaryOp::Neg,
+    "!" => UnaryOp::Not,
+}
+
+PrimExpr: PrimExpr = {
+    "(" <exp: Expr> ")" => PrimExpr::Expr(Box::new(exp)),
+    <LVal> => PrimExpr::LVal(<>),
+    <int: INT> => PrimExpr::Number(int),
+    
+
+}
+
+LVal: LVal = {
+    <name: IDENT> <inds: ("[" <Expr> "]")*> => LVal{
+        id: name,
+        inds: inds,
+    },
+}
+
+Type: ASTType = {
+    "int" => ASTType::Int,
+}
+
+ConstExpr: ConstExpr = {
+    <expr: Expr> => ConstExpr{
+        expr: expr
+        },
+}
+
+
+//End of Grammar & Macros
+
+// Identifiers Parser
+IDENT: String = {
+    <s: r"[a-zA-Z_][a-zA-Z0-9_]*"> => s.to_string()
+}
+// Int Constant Parser
+INT: i32 = {
+    r"0" => 0,
+    r"[1-9][0-9]*" => i32::from_str_radix(<>, 10).unwrap(),
+    r"0[0-7]+" => i32::from_str_radix(<>, 8).unwrap(),
+    r"0[xX][0-9a-fA-F]+" => i32::from_str_radix(&<>[2..], 16).unwrap(),
+} 
+
+Comma<T>: Vec<T> = { // (1)
+    <mut v:(<T> ",")*> <e:T?> => match e { // (2)
+        None => v,
+        Some(e) => {
+            v.push(e);
+            v
+        }
+    }
+};
+
+CommaP<T>: Vec<T> = { // (1)
+    <e:T> <mut v:("," <T>)*> => {
+            v.insert(0,e);
+            v
+    }
+};

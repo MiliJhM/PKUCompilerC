@@ -4,9 +4,9 @@ use std::fs::read_to_string;
 use std::fs::File;
 use std::io::{Result, Write};
 
-mod ast;
-mod koopa_generator;
-mod risc_v_generator;
+use crate::ast::ast_def::*;
+use crate::ast::grammar;
+use crate::koopa_generator::*;
 use koopa::back::KoopaGenerator;
 
 fn main() -> Result<()> {
