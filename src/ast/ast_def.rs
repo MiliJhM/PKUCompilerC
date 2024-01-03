@@ -116,7 +116,7 @@ pub struct ExprStmt {
 pub struct IfStmt {
     pub condition: Expr,
     pub then_stmt: Stmt, // Block or Single Stmt
-    pub else_stmt: Stmt,
+    pub else_stmt: Option<Stmt>,
 }
 
 // Statement Type: While    ( while() {})

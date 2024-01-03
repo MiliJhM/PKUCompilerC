@@ -102,30 +102,57 @@ Block: Block = {
 }
 
 BlockItem: BlockItem = {
-    // Decl => BlockItem::Decl(<>),
+    Decl => BlockItem::Decl(<>),
     Stmt => BlockItem::Stmt(<>),
 }
 
 Stmt: Stmt = {
+    PrimaryStmt => <>,
+    MatchedStmt => <>,
+}
 
-    <lval: LVal> "=" <exp: Expr> ";" => Stmt::AssignStmt(AssignStmt{
-        lval: lval,
-        expr: exp,
-    }),
+PrimaryStmt: Stmt = {
+    "if" "(" <cond: Expr> ")" <then: Stmt> => 
+        Stmt::IfStmt(Box::new(IfStmt{   
+            condition: cond,
+            then_stmt: then,
+            else_stmt: None
+            })),
 
-    <exp: (Expr)?> ";" => Stmt::ExprStmt(ExprStmt{
-        expr: exp,
-    }),
+    "if" "(" <cond: Expr> ")" <then: MatchedStmt> "else" <else_stmt: PrimaryStmt> => 
+        Stmt::IfStmt(Box::new(IfStmt{            
+            condition: cond,
+            then_stmt: then,
+            else_stmt: Some(else_stmt)
+            })),
 
-    "return" <ReturnExpr: (Expr)?> ";" => Stmt::ReturnStmt(ReturnStmt{
-        expr: ReturnExpr,
-    }),
+    "while" "(" <cond: Expr> ")" <body: PrimaryStmt> => 
+        Stmt::WhileStmt(Box::new(WhileStmt{
+            condition: cond,
+            body_stmt: body})),
+}
 
+MatchedStmt: Stmt = {
+    "if" "(" <cond: Expr> ")" <then: MatchedStmt> "else" <else_stmt: MatchedStmt> => 
+        Stmt::IfStmt(Box::new(IfStmt{            
+            condition: cond,
+            then_stmt: then,
+            else_stmt: Some(else_stmt)})),
+    "while" "(" <cond: Expr> ")" <body: MatchedStmt> => 
+        Stmt::WhileStmt(Box::new(WhileStmt{
+            condition: cond,
+            body_stmt: body})),
+
+    "return" <expr: (Expr)?> ";" => Stmt::ReturnStmt(ReturnStmt{expr}),
+    "break" ";" => Stmt::BreakStmt(BreakStmt),
+    "continue" ";" => Stmt::ContinueStmt(ContinueStmt),
+
+    <expr: (Expr)?> ";" => Stmt::ExprStmt(ExprStmt{expr}),
     <block: Block> => Stmt::BlockStmt(block),
 
-
-
+    <lval: LVal> "=" <expr: Expr> ";" => Stmt::AssignStmt(AssignStmt{lval, expr}),
 }
+
 //Lv.1
 Expr: Expr = {
     <expr: LOrExpr> => Expr::LOr(expr),

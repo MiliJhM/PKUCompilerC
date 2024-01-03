@@ -1,6 +1,7 @@
 mod namespace;
 mod generator;
 mod function_interface;
+mod const_evaluator;
 
 use generator::GenerateKoopa;
 use crate::ast::ast_def::*;
@@ -17,11 +18,15 @@ pub fn generate_program(comp_unit: &CompileInit) -> CResult<Program> {
 
 #[derive(Debug)]
 pub enum CompileError{
+    InvalidReturn(String),
     InvalidIdentifier(String),
     InvalidType(String),
+    InvalidInit(String),
+    InvalidFunccall(String),
     DuplicateIdentifier(String),
     VarNotDeclared(String),
     FuncNotDeclared(String),
+    InvalidArrayDeref(String),
 }
 // CResult
 pub type CResult<T> = std::result::Result<T, CompileError>;

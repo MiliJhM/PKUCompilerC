@@ -2,3 +2,4 @@
 /target
 *.ps1
 .vscode/
+test*

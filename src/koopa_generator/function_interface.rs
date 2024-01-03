@@ -66,6 +66,12 @@ impl FunctionInterface {
         return new_bb;
     }
 
+    pub fn new_anomynous_bblock(&mut self, program: &mut Program) -> BasicBlock {
+        let dfg = self.get_dfg_mut(program);
+        let new_bb = dfg.new_bb().basic_block(None);
+        return new_bb;
+    }
+
     pub fn value_builder<'a>(&self, program: &'a mut Program) -> LocalBuilder<'a> {
         let dfg = self.get_dfg_mut(program);
         return dfg.new_value();
@@ -77,7 +83,7 @@ impl FunctionInterface {
         layout.bbs_mut().push_key_back(bb);
     }
 
-    pub fn push_inst_to_bb(&mut self, program: &mut Program, bb: BasicBlock, inst: Value) {
+    pub fn push_inst_to_bb(&self, program: &mut Program, bb: BasicBlock, inst: Value) {
         let layout = self.get_lot_mut(program);
         layout.bb_mut(bb).insts_mut().push_key_back(inst);
     }

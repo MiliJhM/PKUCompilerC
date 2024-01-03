@@ -1,8 +1,6 @@
-use std::collections::HashMap;
 use std::env;
 use std::fs::read_to_string;
-use std::fs::File;
-use std::io::{Result, Write};
+use std::io::Result;
 
 mod ast;
 mod koopa_generator;
@@ -25,6 +23,7 @@ fn main() -> Result<()> {
     let input = read_to_string(input)?;
     let comp_init = ast::grammar::CompileInitParser::new().parse(&input);
     let comp_init = comp_init.unwrap();
+    println!("{:?}", comp_init);
     let mut program = koopa_generator::generate_program(&comp_init).unwrap();
     KoopaGenerator::from_path(output).unwrap().generate_on(&mut program).unwrap();
     
