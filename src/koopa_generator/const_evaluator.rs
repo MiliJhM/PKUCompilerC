@@ -133,8 +133,8 @@ impl ConstEvaluator for MulExpr {
                     (Some(lval), Some(rval)) => {
                         match op {
                             MulOp::Mul => Some(lval * rval),
-                            MulOp::Div => Some(lval / rval),
-                            MulOp::Mod => Some(lval % rval),
+                            MulOp::Div => (rval!=0).then_some(lval / rval),
+                            MulOp::Mod => (rval!=0).then_some(lval % rval),
                         }
                     }
                     _ => None,
@@ -154,7 +154,7 @@ impl ConstEvaluator for UnaryExpr {
                 match op {
                     UnaryOp::Pos => val,
                     UnaryOp::Neg => -val,
-                    UnaryOp::Not => !val,
+                    UnaryOp::Not => (val==0) as i32,
                 }
             }),
         }
