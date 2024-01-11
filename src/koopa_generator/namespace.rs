@@ -300,7 +300,7 @@ impl InitValue {
 } 
 
 impl ExprValue{
-    pub fn get_value(self, program: &mut Program, namespace: &mut Namesp) -> CResult<Value>{
+    pub fn into_value_or_ptr(self, program: &mut Program, namespace: &mut Namesp) -> CResult<Value>{
         match self {
             Self::Void => Err(CompileError::InvalidType("".to_owned())),
             Self::VarInt(value) => Ok(value),
@@ -314,7 +314,7 @@ impl ExprValue{
         }
     }
 
-    pub fn into_integer(self, program: &mut Program, namespace: &mut Namesp) -> CResult<Value> {
+    pub fn into_value(self, program: &mut Program, namespace: &mut Namesp) -> CResult<Value> {
         match self {
             Self::VarInt(value) => Ok(value),
             Self::VarPtr(value) => {

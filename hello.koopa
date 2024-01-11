@@ -1,0 +1,734 @@
+global @map = alloc [[[i32, 3], 100], 100], zeroinit
+global @image = alloc [[i32, 201], 201], zeroinit
+global @seed = alloc i32, zeroinit
+
+decl @getint(): i32
+
+decl @getch(): i32
+
+decl @getarray(*i32): i32
+
+decl @putint(i32)
+
+decl @putch(i32)
+
+decl @putarray(i32, *i32)
+
+decl @starttime()
+
+decl @stoptime()
+
+fun @rand(): i32 {
+%entry:
+  %ret = alloc i32
+  jump %func
+
+%func:
+  %0 = load @seed
+  %1 = mul %0, 214013
+  %2 = add %1, 2531011
+  %3 = mod %2, 1073741824
+  store %3, @seed
+  %4 = load @seed
+  %5 = lt %4, 0
+  br %5, %if_then, %if_else
+
+%if_then:
+  %6 = load @seed
+  %7 = sub 0, %6
+  store %7, @seed
+  jump %if_end
+
+%if_else:
+  jump %if_end
+
+%if_end:
+  %8 = load @seed
+  %9 = div %8, 65536
+  %10 = mod %9, 32768
+  store %10, %ret
+  jump %end
+
+%11:
+  jump %end
+
+%end:
+  %12 = load %ret
+  ret %12
+}
+
+fun @get_neighbor(%13: *i32, %14: *i32, %15: i32): i32 {
+%entry:
+  %ret = alloc i32
+  @pa = alloc *i32
+  @pa_0 = alloc *i32
+  @pa_1 = alloc i32
+  jump %func
+
+%func:
+  store %13, @pa
+  store %14, @pa_0
+  store %15, @pa_1
+  %16 = load @pa_1
+  %17 = eq %16, 0
+  br %17, %if_then, %if_else
+
+%if_then:
+  %18 = load @pa
+  %19 = getptr %18, 0
+  %20 = load %19
+  %21 = eq %20, 0
+  br %21, %if_then_0, %if_else_0
+
+%if_then_0:
+  store 0, %ret
+  jump %end
+
+%22:
+  jump %if_end
+
+%if_else_0:
+  jump %if_end
+
+%if_end:
+  %23 = load @pa
+  %24 = getptr %23, 0
+  %25 = load %24
+  %26 = sub %25, 1
+  %27 = load @pa
+  %28 = getptr %27, 0
+  store %26, %28
+  jump %if_end_0
+
+%if_else:
+  %29 = load @pa_1
+  %30 = eq %29, 1
+  br %30, %if_then_1, %if_else_1
+
+%if_then_1:
+  %31 = load @pa
+  %32 = getptr %31, 0
+  %33 = load %32
+  %34 = sub 100, 1
+  %35 = eq %33, %34
+  br %35, %if_then_2, %if_else_2
+
+%if_then_2:
+  store 0, %ret
+  jump %end
+
+%36:
+  jump %if_end_1
+
+%if_else_2:
+  jump %if_end_1
+
+%if_end_1:
+  %37 = load @pa
+  %38 = getptr %37, 0
+  %39 = load %38
+  %40 = add %39, 1
+  %41 = load @pa
+  %42 = getptr %41, 0
+  store %40, %42
+  jump %if_end_2
+
+%if_else_1:
+  %43 = load @pa_1
+  %44 = eq %43, 2
+  br %44, %if_then_3, %if_else_3
+
+%if_then_3:
+  %45 = load @pa_0
+  %46 = getptr %45, 0
+  %47 = load %46
+  %48 = eq %47, 0
+  br %48, %if_then_4, %if_else_4
+
+%if_then_4:
+  store 0, %ret
+  jump %end
+
+%49:
+  jump %if_end_3
+
+%if_else_4:
+  jump %if_end_3
+
+%if_end_3:
+  %50 = load @pa_0
+  %51 = getptr %50, 0
+  %52 = load %51
+  %53 = sub %52, 1
+  %54 = load @pa_0
+  %55 = getptr %54, 0
+  store %53, %55
+  jump %if_end_4
+
+%if_else_3:
+  %56 = load @pa_1
+  %57 = eq %56, 3
+  br %57, %if_then_5, %if_else_5
+
+%if_then_5:
+  %58 = load @pa_0
+  %59 = getptr %58, 0
+  %60 = load %59
+  %61 = sub 100, 1
+  %62 = eq %60, %61
+  br %62, %if_then_6, %if_else_6
+
+%if_then_6:
+  store 0, %ret
+  jump %end
+
+%63:
+  jump %if_end_5
+
+%if_else_6:
+  jump %if_end_5
+
+%if_end_5:
+  %64 = load @pa_0
+  %65 = getptr %64, 0
+  %66 = load %65
+  %67 = add %66, 1
+  %68 = load @pa_0
+  %69 = getptr %68, 0
+  store %67, %69
+  jump %if_end_6
+
+%if_else_5:
+  jump %if_end_6
+
+%if_end_6:
+  jump %if_end_4
+
+%if_end_4:
+  jump %if_end_2
+
+%if_end_2:
+  jump %if_end_0
+
+%if_end_0:
+  store 1, %ret
+  jump %end
+
+%70:
+  jump %end
+
+%end:
+  %71 = load %ret
+  ret %71
+}
+
+fun @remove_wall(%72: i32, %73: i32, %74: i32) {
+%entry:
+  @pa = alloc i32
+  @pa_0 = alloc i32
+  @pa_1 = alloc i32
+  jump %func
+
+%func:
+  store %72, @pa
+  store %73, @pa_0
+  store %74, @pa_1
+  %75 = load @pa_1
+  %76 = eq %75, 0
+  br %76, %if_then, %if_else
+
+%if_then:
+  %77 = load @pa_0
+  %78 = getelemptr @map, %77
+  %79 = load @pa
+  %80 = getelemptr %78, %79
+  %81 = getelemptr %80, 1
+  store 1, %81
+  jump %if_end
+
+%if_else:
+  %82 = load @pa_1
+  %83 = eq %82, 1
+  br %83, %if_then_0, %if_else_0
+
+%if_then_0:
+  %84 = load @pa_0
+  %85 = getelemptr @map, %84
+  %86 = load @pa
+  %87 = add %86, 1
+  %88 = getelemptr %85, %87
+  %89 = getelemptr %88, 1
+  store 1, %89
+  jump %if_end_0
+
+%if_else_0:
+  %90 = load @pa_1
+  %91 = eq %90, 2
+  br %91, %if_then_1, %if_else_1
+
+%if_then_1:
+  %92 = load @pa_0
+  %93 = getelemptr @map, %92
+  %94 = load @pa
+  %95 = getelemptr %93, %94
+  %96 = getelemptr %95, 2
+  store 1, %96
+  jump %if_end_1
+
+%if_else_1:
+  %97 = load @pa_1
+  %98 = eq %97, 3
+  br %98, %if_then_2, %if_else_2
+
+%if_then_2:
+  %99 = load @pa_0
+  %100 = add %99, 1
+  %101 = getelemptr @map, %100
+  %102 = load @pa
+  %103 = getelemptr %101, %102
+  %104 = getelemptr %103, 2
+  store 1, %104
+  jump %if_end_2
+
+%if_else_2:
+  jump %if_end_2
+
+%if_end_2:
+  jump %if_end_1
+
+%if_end_1:
+  jump %if_end_0
+
+%if_end_0:
+  jump %if_end
+
+%if_end:
+  jump %end
+
+%end:
+  ret
+}
+
+fun @gen_maze(%105: i32, %106: i32) {
+%entry:
+  @pa = alloc i32
+  @pa_0 = alloc i32
+  @dirs = alloc [i32, 4]
+  @i = alloc i32
+  @r = alloc i32
+  @temp = alloc i32
+  @xx = alloc [i32, 1]
+  @yy = alloc [i32, 1]
+  jump %func
+
+%func:
+  store %105, @pa
+  store %106, @pa_0
+  %107 = load @pa_0
+  %108 = getelemptr @map, %107
+  %109 = load @pa
+  %110 = getelemptr %108, %109
+  %111 = getelemptr %110, 0
+  store 1, %111
+  %112 = getelemptr @dirs, 0
+  store 0, %112
+  %113 = getelemptr @dirs, 1
+  store 1, %113
+  %114 = getelemptr @dirs, 2
+  store 2, %114
+  %115 = getelemptr @dirs, 3
+  store 3, %115
+  store 0, @i
+  jump %while_entry
+
+%while_entry:
+  %116 = load @i
+  %117 = lt %116, 4
+  br %117, %while_body, %while_end
+
+%while_body:
+  %118 = call @rand()
+  %119 = mod %118, 4
+  store %119, @r
+  %120 = load @i
+  %121 = getelemptr @dirs, %120
+  %122 = load %121
+  store %122, @temp
+  %123 = load @r
+  %124 = getelemptr @dirs, %123
+  %125 = load %124
+  %126 = load @i
+  %127 = getelemptr @dirs, %126
+  store %125, %127
+  %128 = load @temp
+  %129 = load @r
+  %130 = getelemptr @dirs, %129
+  store %128, %130
+  %131 = load @i
+  %132 = add %131, 1
+  store %132, @i
+  jump %while_entry
+
+%while_end:
+  store 0, @i
+  jump %while_entry_0
+
+%while_entry_0:
+  %133 = load @i
+  %134 = lt %133, 4
+  br %134, %while_body_0, %while_end_0
+
+%while_body_0:
+  %135 = load @pa
+  %136 = getelemptr @xx, 0
+  store %135, %136
+  %137 = load @pa_0
+  %138 = getelemptr @yy, 0
+  store %137, %138
+  %139 = getelemptr @xx, 0
+  %140 = getelemptr @yy, 0
+  %141 = load @i
+  %142 = getelemptr @dirs, %141
+  %143 = load %142
+  %144 = call @get_neighbor(%139, %140, %143)
+  %145 = alloc i32
+  %146 = ne %144, 0
+  store %146, %145
+  br %146, %land_rexp, %land_end
+
+%land_rexp:
+  %147 = getelemptr @yy, 0
+  %148 = load %147
+  %149 = getelemptr @map, %148
+  %150 = getelemptr @xx, 0
+  %151 = load %150
+  %152 = getelemptr %149, %151
+  %153 = getelemptr %152, 0
+  %154 = load %153
+  %155 = eq %154, 0
+  %156 = ne %155, 0
+  store %156, %145
+  jump %land_end
+
+%land_end:
+  %157 = load %145
+  br %157, %if_then, %if_else
+
+%if_then:
+  %158 = load @pa
+  %159 = load @pa_0
+  %160 = load @i
+  %161 = getelemptr @dirs, %160
+  %162 = load %161
+  call @remove_wall(%158, %159, %162)
+  %163 = getelemptr @xx, 0
+  %164 = load %163
+  %165 = getelemptr @yy, 0
+  %166 = load %165
+  call @gen_maze(%164, %166)
+  jump %if_end
+
+%if_else:
+  jump %if_end
+
+%if_end:
+  %167 = load @i
+  %168 = add %167, 1
+  store %168, @i
+  jump %while_entry_0
+
+%while_end_0:
+  jump %end
+
+%end:
+  ret
+}
+
+fun @render() {
+%entry:
+  @x = alloc i32
+  @y = alloc i32
+  jump %func
+
+%func:
+  store 0, @y
+  jump %while_entry
+
+%while_entry:
+  %169 = load @y
+  %170 = lt %169, 100
+  br %170, %while_body, %while_end
+
+%while_body:
+  store 0, @x
+  jump %while_entry_0
+
+%while_entry_0:
+  %171 = load @x
+  %172 = lt %171, 100
+  br %172, %while_body_0, %while_end_0
+
+%while_body_0:
+  %173 = load @y
+  %174 = getelemptr @map, %173
+  %175 = load @x
+  %176 = getelemptr %174, %175
+  %177 = getelemptr %176, 1
+  %178 = load %177
+  %179 = eq %178, 0
+  br %179, %if_then, %if_else
+
+%if_then:
+  %180 = load @y
+  %181 = mul %180, 2
+  %182 = add %181, 1
+  %183 = getelemptr @image, %182
+  %184 = load @x
+  %185 = mul %184, 2
+  %186 = getelemptr %183, %185
+  store 1, %186
+  jump %if_end
+
+%if_else:
+  jump %if_end
+
+%if_end:
+  %187 = load @y
+  %188 = getelemptr @map, %187
+  %189 = load @x
+  %190 = getelemptr %188, %189
+  %191 = getelemptr %190, 2
+  %192 = load %191
+  %193 = eq %192, 0
+  br %193, %if_then_0, %if_else_0
+
+%if_then_0:
+  %194 = load @y
+  %195 = mul %194, 2
+  %196 = getelemptr @image, %195
+  %197 = load @x
+  %198 = mul %197, 2
+  %199 = add %198, 1
+  %200 = getelemptr %196, %199
+  store 1, %200
+  jump %if_end_0
+
+%if_else_0:
+  jump %if_end_0
+
+%if_end_0:
+  %201 = load @y
+  %202 = mul %201, 2
+  %203 = getelemptr @image, %202
+  %204 = load @x
+  %205 = mul %204, 2
+  %206 = getelemptr %203, %205
+  store 1, %206
+  %207 = load @x
+  %208 = add %207, 1
+  store %208, @x
+  jump %while_entry_0
+
+%while_end_0:
+  %209 = load @y
+  %210 = add %209, 1
+  store %210, @y
+  jump %while_entry
+
+%while_end:
+  store 0, @y
+  jump %while_entry_1
+
+%while_entry_1:
+  %211 = load @y
+  %212 = mul 100, 2
+  %213 = add %212, 1
+  %214 = lt %211, %213
+  br %214, %while_body_1, %while_end_1
+
+%while_body_1:
+  %215 = load @y
+  %216 = getelemptr @image, %215
+  %217 = mul 100, 2
+  %218 = getelemptr %216, %217
+  store 1, %218
+  %219 = load @y
+  %220 = add %219, 1
+  store %220, @y
+  jump %while_entry_1
+
+%while_end_1:
+  store 0, @x
+  jump %while_entry_2
+
+%while_entry_2:
+  %221 = load @x
+  %222 = mul 100, 2
+  %223 = add %222, 1
+  %224 = lt %221, %223
+  br %224, %while_body_2, %while_end_2
+
+%while_body_2:
+  %225 = mul 100, 2
+  %226 = getelemptr @image, %225
+  %227 = load @x
+  %228 = getelemptr %226, %227
+  store 1, %228
+  %229 = load @x
+  %230 = add %229, 1
+  store %230, @x
+  jump %while_entry_2
+
+%while_end_2:
+  jump %end
+
+%end:
+  ret
+}
+
+fun @main(): i32 {
+%entry:
+  %ret = alloc i32
+  @zoom = alloc i32
+  @y = alloc i32
+  @x = alloc i32
+  @xx = alloc i32
+  @yy = alloc i32
+  @r = alloc i32
+  @g = alloc i32
+  @b = alloc i32
+  jump %func
+
+%func:
+  %231 = call @getint()
+  store %231, @seed
+  %232 = call @getint()
+  store %232, @zoom
+  call @starttime()
+  %233 = call @rand()
+  %234 = mod %233, 100
+  %235 = call @rand()
+  %236 = mod %235, 100
+  call @gen_maze(%234, %236)
+  call @render()
+  call @stoptime()
+  call @starttime()
+  call @putch(80)
+  call @putch(51)
+  call @putch(10)
+  %237 = mul 100, 2
+  %238 = add %237, 1
+  %239 = load @zoom
+  %240 = mul %238, %239
+  call @putint(%240)
+  call @putch(32)
+  %241 = mul 100, 2
+  %242 = add %241, 1
+  %243 = load @zoom
+  %244 = mul %242, %243
+  call @putint(%244)
+  call @putch(10)
+  call @putint(255)
+  call @putch(10)
+  store 0, @y
+  jump %while_entry
+
+%while_entry:
+  %245 = load @y
+  %246 = mul 100, 2
+  %247 = add %246, 1
+  %248 = load @zoom
+  %249 = mul %247, %248
+  %250 = lt %245, %249
+  br %250, %while_body, %while_end
+
+%while_body:
+  store 0, @x
+  jump %while_entry_0
+
+%while_entry_0:
+  %251 = load @x
+  %252 = mul 100, 2
+  %253 = add %252, 1
+  %254 = load @zoom
+  %255 = mul %253, %254
+  %256 = lt %251, %255
+  br %256, %while_body_0, %while_end_0
+
+%while_body_0:
+  %257 = load @x
+  %258 = load @zoom
+  %259 = div %257, %258
+  store %259, @xx
+  %260 = load @y
+  %261 = load @zoom
+  %262 = div %260, %261
+  store %262, @yy
+  %263 = load @yy
+  %264 = getelemptr @image, %263
+  %265 = load @xx
+  %266 = getelemptr %264, %265
+  %267 = load %266
+  %268 = mul %267, 255
+  %269 = load @x
+  %270 = mul %268, %269
+  %271 = mul 100, 2
+  %272 = add %271, 1
+  %273 = load @zoom
+  %274 = mul %272, %273
+  %275 = div %270, %274
+  store %275, @r
+  %276 = load @yy
+  %277 = getelemptr @image, %276
+  %278 = load @xx
+  %279 = getelemptr %277, %278
+  %280 = load %279
+  %281 = mul %280, 255
+  %282 = load @y
+  %283 = mul %281, %282
+  %284 = mul 100, 2
+  %285 = add %284, 1
+  %286 = load @zoom
+  %287 = mul %285, %286
+  %288 = div %283, %287
+  store %288, @g
+  %289 = load @yy
+  %290 = getelemptr @image, %289
+  %291 = load @xx
+  %292 = getelemptr %290, %291
+  %293 = load %292
+  %294 = mul %293, 255
+  store %294, @b
+  %295 = load @r
+  call @putint(%295)
+  call @putch(32)
+  %296 = load @g
+  call @putint(%296)
+  call @putch(32)
+  %297 = load @b
+  call @putint(%297)
+  call @putch(32)
+  %298 = load @x
+  %299 = add %298, 1
+  store %299, @x
+  jump %while_entry_0
+
+%while_end_0:
+  call @putch(10)
+  %300 = load @y
+  %301 = add %300, 1
+  store %301, @y
+  jump %while_entry
+
+%while_end:
+  call @stoptime()
+  store 0, %ret
+  jump %end
+
+%302:
+  jump %end
+
+%end:
+  %303 = load %ret
+  ret %303
+}

@@ -258,7 +258,7 @@ impl GenerateKoopa for InitVal {
                     InitValue::Const(expr.const_eval(namespace).ok_or(CompileError::InvalidInit("".to_string()))?)
                 }
                 else {
-                    InitValue::Var(expr.generate(namespace, program)?.into_integer(program, namespace)?)
+                    InitValue::Var(expr.generate(namespace, program)?.into_value(program, namespace)?)
                 }
             },
 
@@ -409,7 +409,7 @@ impl GenerateKoopa for Stmt{
 impl GenerateKoopa for AssignStmt {
     type Out = ();
     fn generate(&self, namespace: &mut Namesp, program: &mut Program) -> CResult<Self::Out> {
-        let exprvalue = self.expr.generate(namespace, program)?.into_integer(program, namespace)?;
+        let exprvalue = self.expr.generate(namespace, program)?.into_value(program, namespace)?;
         let lval = self.lval.generate(namespace, program)?.into_lvptr()?;
         let function_interface = namespace.get_cur_func_interf()?;
         let store = function_interface.value_builder(program).store(exprvalue, lval);
@@ -435,7 +435,7 @@ impl GenerateKoopa for ReturnStmt {
     fn generate(&self, namespace: &mut Namesp, program: &mut Program) -> CResult<Self::Out> {
         if let Some(ret) = namespace.get_cur_func_interf()?.get_ret() {
             if let Some(ret_exp) = &self.expr {
-                let ret_exp = ret_exp.generate(namespace, program)?.into_integer(program, namespace)?;
+                let ret_exp = ret_exp.generate(namespace, program)?.into_value(program, namespace)?;
                 let func_interface = namespace.get_cur_func_interf()?;
                 let store = func_interface.value_builder(program).store(ret_exp, ret);
                 func_interface.push_inst_to_bb(program, func_interface.current_bb(), store);
@@ -456,7 +456,7 @@ impl GenerateKoopa for ReturnStmt {
 impl GenerateKoopa for IfStmt {
     type Out = ();
     fn generate(&self, namespace: &mut Namesp, program: &mut Program) -> CResult<Self::Out> {
-        let cond_val = self.condition.generate(namespace, program)?.into_integer(program, namespace)?;
+        let cond_val = self.condition.generate(namespace, program)?.into_value(program, namespace)?;
         
         let func_interface = namespace.get_cur_func_interf_mut()?;
         let then_block = func_interface.new_bblock(program, "%if_then");
@@ -495,7 +495,7 @@ impl GenerateKoopa for WhileStmt {
         func_interface.push_inst_to_bb(program, func_interface.current_bb(), jump_into_while);
         func_interface.push_bblock(program, while_entry);
 
-        let cond_val = self.condition.generate(namespace, program)?.into_integer(program, namespace)?;
+        let cond_val = self.condition.generate(namespace, program)?.into_value(program, namespace)?;
 
         let func_interface = namespace.get_cur_func_interf_mut()?;
         let while_body = func_interface.new_bblock(program, "%while_body");
@@ -571,7 +571,7 @@ impl GenerateKoopa for LOrExpr{
         match self {
             Self::LAndExpr(expr) => expr.generate(namespace, program),
             Self::LOrExpr(lexp, rexp) => {
-                let lv = lexp.generate(namespace, program)?.into_integer(program, namespace)?;
+                let lv = lexp.generate(namespace, program)?.into_value(program, namespace)?;
                 let func_interface = namespace.get_cur_func_interf_mut()?;
                 let result = func_interface.value_builder(program).alloc(Type::get_i32());
                 func_interface.push_inst_to_bb(program, func_interface.current_bb(), result);
@@ -588,7 +588,7 @@ impl GenerateKoopa for LOrExpr{
                 func_interface.push_inst_to_bb(program, func_interface.current_bb(), branch);
                 
                 func_interface.push_bblock(program, rexp_bb);
-                let rv = rexp.generate(namespace, program)?.into_integer(program, namespace)?;
+                let rv = rexp.generate(namespace, program)?.into_value(program, namespace)?;
 
                 let func_interface = namespace.get_cur_func_interf_mut()?;  // 细化namespace的可变借用作用域，避免同时存在不可变借用和可变借用
                 let rv = func_interface.value_builder(program).binary(BinaryOp::NotEq, rv, ir_zero);
@@ -616,7 +616,7 @@ impl GenerateKoopa for LAndExpr{
         match self {
             Self::EqExpr(expr) => expr.generate(namespace,program),
             Self::LAndExpr(lexp, rexp) => {
-                let lv = lexp.generate(namespace, program)?.into_integer(program, namespace)?;
+                let lv = lexp.generate(namespace, program)?.into_value(program, namespace)?;
                 let func_interface = namespace.get_cur_func_interf_mut()?;
                 let result = func_interface.value_builder(program).alloc(Type::get_i32());
                 func_interface.push_inst_to_bb(program, func_interface.current_bb(), result);
@@ -633,7 +633,7 @@ impl GenerateKoopa for LAndExpr{
                 func_interface.push_inst_to_bb(program, func_interface.current_bb(), branch);
                 
                 func_interface.push_bblock(program, rexp_bb);
-                let rv = rexp.generate(namespace, program)?.into_integer(program, namespace)?;
+                let rv = rexp.generate(namespace, program)?.into_value(program, namespace)?;
 
                 let func_interface = namespace.get_cur_func_interf_mut()?;  // 细化namespace的可变借用作用域，避免同时存在不可变借用和可变借用
                 let rv = func_interface.value_builder(program).binary(BinaryOp::NotEq, rv, ir_zero);
@@ -661,8 +661,8 @@ impl GenerateKoopa for EqExpr{
         match self {
             Self::RelExpr(expr) => expr.generate(namespace, program),
             Self::EqExpr(lexp, op, rexp) => {
-                let lv = lexp.generate(namespace, program)?.into_integer(program, namespace)?;
-                let rv = rexp.generate(namespace, program)?.into_integer(program, namespace)?;
+                let lv = lexp.generate(namespace, program)?.into_value(program, namespace)?;
+                let rv = rexp.generate(namespace, program)?.into_value(program, namespace)?;
                 let op = match op {
                     EqOp::Eq => BinaryOp::Eq,
                     EqOp::Ne => BinaryOp::NotEq,
@@ -683,8 +683,8 @@ impl GenerateKoopa for RelExpr{
         match self {
             Self::AddExpr(expr) => expr.generate(namespace, program),
             Self::RelExpr(lexp, op, rexp) => {
-                let lv = lexp.generate(namespace, program)?.into_integer(program, namespace)?;
-                let rv = rexp.generate(namespace, program)?.into_integer(program, namespace)?;
+                let lv = lexp.generate(namespace, program)?.into_value(program, namespace)?;
+                let rv = rexp.generate(namespace, program)?.into_value(program, namespace)?;
                 let op = match op {
                     RelOp::Lt => BinaryOp::Lt,
                     RelOp::Gt => BinaryOp::Gt,
@@ -707,8 +707,8 @@ impl GenerateKoopa for AddExpr{
         match self {
             Self::MulExpr(expr) => expr.generate(namespace, program),
             Self::AddAndMul(lexp, op, rexp) => {
-                let lv = lexp.generate(namespace, program)?.into_integer(program, namespace)?;
-                let rv = rexp.generate(namespace, program)?.into_integer(program, namespace)?;
+                let lv = lexp.generate(namespace, program)?.into_value(program, namespace)?;
+                let rv = rexp.generate(namespace, program)?.into_value(program, namespace)?;
                 let op = match op {
                     AddOp::Add => BinaryOp::Add,
                     AddOp::Minus => BinaryOp::Sub,
@@ -729,8 +729,8 @@ impl GenerateKoopa for MulExpr{
         match self {
             Self::UnaryExpr(expr) => expr.generate(namespace, program),
             Self::MulAndUnary(lexp, op, rexp) => {
-                let lv = lexp.generate(namespace, program)?.into_integer(program, namespace)?;
-                let rv = rexp.generate(namespace, program)?.into_integer(program, namespace)?;
+                let lv = lexp.generate(namespace, program)?.into_value(program, namespace)?;
+                let rv = rexp.generate(namespace, program)?.into_value(program, namespace)?;
                 let op = match op {
                     MulOp::Mul => BinaryOp::Mul,
                     MulOp::Div => BinaryOp::Div,
@@ -753,7 +753,7 @@ impl GenerateKoopa for UnaryExpr{
             Self::FuncCall(fc) => fc.generate(namespace, program),
             Self::PrimExpr(expr) => expr.generate(namespace, program),
             Self::UnaryExpr(op, expr) => {
-                let v = expr.generate(namespace, program)?.into_integer(program, namespace)?;
+                let v = expr.generate(namespace, program)?.into_value(program, namespace)?;
                 let func_interface = namespace.get_cur_func_interf()?;
                 let ir_zero = func_interface.value_builder(program).integer(0);
                 let result = match op {
@@ -791,7 +791,7 @@ impl GenerateKoopa for FuncCall{
         let args = self
             .args
             .iter()
-            .map(|arg| arg.generate(namespace, program)?.get_value(program, namespace))
+            .map(|arg| arg.generate(namespace, program)?.into_value_or_ptr(program, namespace))
             .collect::<CResult<Vec<Value>>>()?;
 
         if params.len() != args.len() {
@@ -884,7 +884,7 @@ impl GenerateKoopa for LVal{
                 return Err(CompileError::InvalidArrayDeref("".to_owned()));
             }
             dims -= 1;
-            let ind_int = ind.generate(namespace, program)?.into_integer(program, namespace)?;
+            let ind_int = ind.generate(namespace, program)?.into_value_or_ptr(program, namespace)?;
             let func_interface = namespace.get_cur_func_interf()?;
 
             val = if is_array_param && i == 0{
