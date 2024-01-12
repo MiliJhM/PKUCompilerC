@@ -4,7 +4,7 @@ use super::program_manager::*;
 
 pub struct Writer<'file> {
     pub f: &'file mut File,
-    pub reg_temp: String,
+    pub reg_temp: &'static str,
     
 }
 
@@ -12,12 +12,12 @@ impl<'file> Writer<'file> {
     pub fn new(f: &'file mut File) -> Self {
         Self {
             f,
-            reg_temp: "t0".to_string(),
+            reg_temp: "t0",
         }
     }
 
-    pub fn update_temp_reg(&mut self, reg: &str) {
-        self.reg_temp = reg.to_string();
+    pub fn update_temp_reg(&mut self, reg: &'static str) {
+        self.reg_temp = reg;
     }
 
     pub fn func_entry(&mut self, func_name: &str, func_interface: &FunctionInterface) -> Result<()> {
@@ -29,7 +29,7 @@ impl<'file> Writer<'file> {
         if offset != 0 {
             self.addi("sp", "sp", -offset)?;
 
-            if !func_interface.need_restore_ra(){
+            if !func_interface.neednt_restore_ra(){
                 self.sw("ra", "sp", offset - 4)?;
             }
         }   
@@ -40,7 +40,7 @@ impl<'file> Writer<'file> {
         let offset = func_interface.sp_offset();
         let offset = offset as i32;
         if offset != 0 {
-            if !func_interface.need_restore_ra(){
+            if !func_interface.neednt_restore_ra(){
                 self.lw("ra", "sp", offset - 4)?;
             }
             self.addi("sp", "sp", offset)?;
@@ -85,8 +85,8 @@ impl<'file> Writer<'file> {
             writeln!(self.f, "  lw {}, {}({})", rd, offset, rs)?;
         }
         else {
-            self.addi(self.reg_temp.as_str(), rs, offset)?;
-            writeln!(self.f, "  lw {}, 0({})", rd, self.reg_temp.as_str())?;
+            self.addi(&self.reg_temp, rs, offset)?;
+            writeln!(self.f, "  lw {}, 0({})", rd, &self.reg_temp)?;
         }
         // self.f.write_fmt(format_args!("lw {}, {}({})\n", rd, offset, rs))?;
         return Ok(());
@@ -98,8 +98,8 @@ impl<'file> Writer<'file> {
             writeln!(self.f, "  sw {}, {}({})", rs, offset, rd)?;
         }
         else {
-            self.addi(self.reg_temp.as_str(), rs, offset)?;
-            writeln!(self.f, "  sw {}, 0({})", rs, self.reg_temp.as_str())?;
+            self.addi(&self.reg_temp, rs, offset)?;
+            writeln!(self.f, "  sw {}, 0({})", rs, &self.reg_temp)?;
         }
         // self.f.write_fmt(format_args!("sw {}, {}({})\n", rs, offset, rd))?;
         return Ok(());
@@ -120,8 +120,8 @@ impl<'file> Writer<'file> {
             writeln!(self.f, "  {}i {}, {}, {}", op, rd, rs1, imm)?;
         }
         else {
-            self.li(self.reg_temp.as_str(), imm)?;
-            writeln!(self.f, "  {} {}, {}, {}", op, rd, self.reg_temp.as_str(), 0)?;
+            self.li(&self.reg_temp, imm)?;
+            writeln!(self.f, "  {} {}, {}, {}", op, rd, &self.reg_temp, 0)?;
         }
         // self.f.write_fmt(format_args!("{} {}, {}, {}\n", op, rd, rs1, imm))?;
         return Ok(());
@@ -130,6 +130,26 @@ impl<'file> Writer<'file> {
     pub fn addi(&mut self, rd: &str, rs1: &str, imm: i32) -> Result<()>  {
         self.op2i("add", rd, rs1, imm)?;
         // self.f.write_fmt(format_args!("addi {}, {}, {}\n", rd, rs1, imm))?;
+        return Ok(());
+    }
+
+    pub fn muli(&mut self, rd: &str, rs1: &str, imm: i32) -> Result<()>  {
+        if imm == 0 {
+            self.mv(rd, "x0")?;
+        }
+        else if imm > 0 && (imm & (imm-1)) == 0{
+            let mut shift = 0;
+            let mut imm = imm>>1;
+            while imm != 0 {
+                imm = imm>>1;
+                shift += 1;
+            }
+            self.op2i("sll", rd, rs1, shift)?;
+        }
+        else {
+            self.li(&self.reg_temp, imm)?;
+            self.op2("mul", rd, rs1, &self.reg_temp)?;
+        }
         return Ok(());
     }
 

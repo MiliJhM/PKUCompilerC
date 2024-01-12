@@ -67,7 +67,7 @@ pub struct FunctionInterface{
     allocated: HashMap<*const ValueData, ValueSlot>,
 
     bb_names: HashMap<BasicBlock, String>,
-    stackp_offset: Option<usize>,
+    stackp_offset: Cell<Option<usize>>,
 
     
 }
@@ -86,7 +86,7 @@ impl FunctionInterface{
             allocated_stacksize: 0,
             allocated: HashMap::new(),
             bb_names: HashMap::new(),
-            stackp_offset: None,
+            stackp_offset: Cell::new(None),
         }
     }
 
@@ -95,11 +95,7 @@ impl FunctionInterface{
     }
 
     pub fn update_max_arg_num(&mut self, num: usize){
-        if let Some(max) = self.max_arg_num{
-            if max < num{
-                self.max_arg_num = Some(num);
-            }
-        }else if num != 0{
+        if self.max_arg_num.is_none() || num > self.max_arg_num.unwrap() {
             self.max_arg_num = Some(num);
         }
     }
@@ -108,24 +104,26 @@ impl FunctionInterface{
         self.max_arg_num
     }
 
-    pub fn need_restore_ra(&self) -> bool{
+    pub fn neednt_restore_ra(&self) -> bool{
         self.max_arg_num.is_none()
     }
 
     // get the final stack sp offset from the frame base
     // there the frame end with max num of args of callees
     pub fn sp_offset(&self) -> usize{
-        if let Some(offset) = self.stackp_offset{
+        if let Some(offset) = self.stackp_offset.get(){
             offset
         }
-        else{
-            let return_address_size = if self.need_restore_ra() {0} else {4};
+        else
+        {
+            let return_address_size = if self.neednt_restore_ra() {0} else {4};
             let arg_size = match self.max_arg_num{
                 Some(num) => if num <= 8 {0} else {(num-8)*4},
                 None => 0,
             };
-            let offset = return_address_size+arg_size;
-            let final_offset = (offset+15)/16*16;
+            let offset = return_address_size+arg_size+self.allocated_stacksize;
+            let final_offset = (offset+15) / 16 * 16;
+            self.stackp_offset.set(Some(final_offset));
             return final_offset;
         }
     }
@@ -135,15 +133,15 @@ impl FunctionInterface{
             id.replace(id.get()+1)
         });
         let name = match name{
-            Some(name) => name.clone(),
+            Some(name) => format!(".L{}_index_{}", &name.clone()[1..], id),
             None => format!(".L{}", id),
         };
         self.bb_names.insert(bb, name);
         
     }
 
-    pub fn get_bb_name(&self, bb: BasicBlock) -> String{
-        self.bb_names.get(&bb).unwrap().clone()
+    pub fn get_bb_name(&self, bb: BasicBlock) -> &str{
+        self.bb_names.get(&bb).unwrap()
     }
 
     pub fn alloc_new_slot(&mut self, value: &ValueData) {
@@ -174,22 +172,24 @@ impl FunctionInterface{
     // * stack_offset_resize - 用于将相对函数入口的栈偏移量转换为相对栈指针的栈偏移量，避免内部变量暴露
     pub fn stack_offset_resize(&self, value: &ValueData) -> Option<ValueSlot> {
 
+
         match self.allocated.get(&(value as *const ValueData)) {
             Some(val) => {
+
                 if val.get_stackslot().is_none(){
                     return None;
                 }                
 
-                let mut new_slot = None;
-                if self.need_restore_ra(){
-                    new_slot = Some(ValueSlot::new_stackslot(self.sp_offset()-self.allocated_stacksize + val.stackslot_offset().unwrap(), val.is_ptr()));
-                    new_slot
+                let mut new_slot;
+                if self.neednt_restore_ra(){
+                    new_slot = Some(ValueSlot::new_stackslot(self.sp_offset() + val.stackslot_offset().unwrap() - self.allocated_stacksize , val.is_ptr()));
                 }
                 else {
-                    new_slot = Some(ValueSlot::new_stackslot(self.sp_offset() + val.stackslot_offset().unwrap() - 4, val.is_ptr()));
-                    new_slot
+                    new_slot = Some(ValueSlot::new_stackslot(self.sp_offset() + val.stackslot_offset().unwrap() - 4 - self.allocated_stacksize, val.is_ptr()));
                 }
-
+                dbg!(&val);
+                dbg!(&new_slot);
+                new_slot
             }
             None => None,
         }
@@ -218,7 +218,7 @@ impl ValueSlot{
         return self.ptr_flag;
     }
 
-    fn new_stackslot(offset:usize, is_ptr:bool) -> Self{
+    pub fn new_stackslot(offset:usize, is_ptr:bool) -> Self{
         Self{
             reg: None,
             stack: Some(StackSlot::new(offset)),
@@ -226,7 +226,7 @@ impl ValueSlot{
         }
     }
 
-    fn new_regslot(reg:String, is_ptr:bool) -> Self{
+    pub fn new_regslot(reg:String, is_ptr:bool) -> Self{
         Self{
             reg: Some(RegSlot::new(reg)),
             stack: None,
@@ -234,15 +234,15 @@ impl ValueSlot{
         }
     }
 
-    fn add_regslot(&mut self, reg:String, is_ptr:bool){
+    pub fn add_regslot(&mut self, reg:String, is_ptr:bool){
         self.reg = Some(RegSlot::new(reg));
     }
 
-    fn add_stackslot(&mut self, offset:usize, is_ptr:bool){
+    pub fn add_stackslot(&mut self, offset:usize, is_ptr:bool){
         self.stack = Some(StackSlot::new(offset));
     }
 
-    fn get_regslot(&self) -> Option<&RegSlot>{
+    pub fn get_regslot(&self) -> Option<&RegSlot>{
         if let Some(reg) = &self.reg{
             Some(reg)
         }
@@ -251,7 +251,7 @@ impl ValueSlot{
         }
     }
 
-    fn get_stackslot(&self) -> Option<&StackSlot>{
+    pub fn get_stackslot(&self) -> Option<&StackSlot>{
         if let Some(stack) = &self.stack{
             Some(stack)
         }
@@ -260,7 +260,7 @@ impl ValueSlot{
         }
     }
 
-    fn get_regslot_mut(&mut self) -> Option<&mut RegSlot>{
+    pub fn get_regslot_mut(&mut self) -> Option<&mut RegSlot>{
         if let Some(reg) = &mut self.reg{
             Some(reg)
         }
@@ -269,7 +269,7 @@ impl ValueSlot{
         }
     }
 
-    fn get_stackslot_mut(&mut self) -> Option<&mut StackSlot>{
+    pub fn get_stackslot_mut(&mut self) -> Option<&mut StackSlot>{
         if let Some(stack) = &mut self.stack{
             Some(stack)
         }
@@ -278,7 +278,7 @@ impl ValueSlot{
         }
     }
 
-    fn stackslot_offset(&self) -> Option<usize>{
+    pub fn stackslot_offset(&self) -> Option<usize>{
         if let Some(stack) = &self.stack{
             Some(stack.offset)
         }
