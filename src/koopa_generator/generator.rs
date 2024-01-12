@@ -155,7 +155,27 @@ impl GenerateKoopa for ConstDef {
     type Out = ();
 
     fn generate(&self, namespace: &mut Namesp, program: &mut Program) -> CResult<Self::Out> {
-        let ty_from_dims = dim_vec_to_type(&self.dims, namespace)?;
+        let ty_from_dims = dim_vec_to_type(&self.dims, namespace);
+        let ty_from_dims = match ty_from_dims {
+            Ok(ty) => ty,
+            Err(_) => {
+                let ty = Type::get_i32();
+                if namespace.is_global() {
+                    let init_data = program.new_value().zero_init(ty);
+                    let value = program.new_value().global_alloc(init_data);
+                    program.set_value_name(value, Some(format!("@{}", self.id)));
+                    return Ok(());
+                }
+                else {
+                    let func_interface = namespace.get_cur_func_interf_mut()?;
+                    let alloc = func_interface.alloc_new_value(program, ty, Some(&self.id));
+                    let value = func_interface.value_builder(program).integer(0);
+                    let value = func_interface.value_builder(program).store(value, alloc);
+                    return Ok(());
+                };
+            },
+        };
+
         let init = self.init_val.generate(namespace, program)?.init_rebuild(&ty_from_dims)?;
 
         if ty_from_dims.is_i32() {
@@ -191,7 +211,7 @@ impl GenerateKoopa for ConstInitVal {
 
     fn generate(&self, namespace: &mut Namesp, program: &mut Program) -> CResult<Self::Out> {
         let result = match self{
-            Self::Expr(expr) => InitValue::Const(expr.generate(namespace, program)?),
+            Self::Expr(expr) => InitValue::Const(expr.const_eval(namespace).unwrap()),
 
             Self::List(list) => {
                 let mut result = Vec::new();
@@ -221,7 +241,26 @@ impl GenerateKoopa for VarDef {
     type Out = ();
 
     fn generate(&self, namespace: &mut Namesp, program: &mut Program) -> CResult<Self::Out> {
-        let type_from_dim = dim_vec_to_type(&self.dims, namespace)?;
+        let type_from_dims = dim_vec_to_type(&self.dims, namespace);
+        let type_from_dim = match type_from_dims {
+            Ok(ty) => ty,
+            Err(_) => {
+                let ty = Type::get_i32();
+                if namespace.is_global() {
+                    let init_data = program.new_value().zero_init(ty);
+                    let value = program.new_value().global_alloc(init_data);
+                    program.set_value_name(value, Some(format!("@{}", self.id)));
+                    return Ok(());
+                }
+                else {
+                    let func_interface = namespace.get_cur_func_interf_mut()?;
+                    let alloc = func_interface.alloc_new_value(program, ty, Some(&self.id));
+                    let value = func_interface.value_builder(program).integer(0);
+                    let value = func_interface.value_builder(program).store(value, alloc);
+                    return Ok(());
+                };
+            },
+        };
         let init = match &self.init_val {
             Some(init) => Some(init.generate(namespace, program)?.init_rebuild(&type_from_dim)?),
             None => None,
