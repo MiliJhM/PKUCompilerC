@@ -7,7 +7,8 @@ match {
     r"\s*" => {},
     r"//[^\n\r]*[\n\r]*" => {},
     // /*  
-    r"/\*([^*]|\*+[^*/])*\*+/" => {},
+    // r"/\*([^*]|\*+[^*/])*\*+/" => {},
+    r"/\*[^*]*\*+(?:[^/*][^*]*\*+)*/" => {},
     _
 }
 
@@ -85,7 +86,7 @@ FuncHead: (FuncType, String) = { // 不能分开写 会导致LR(1)约束不成�
 FuncArgs = Comma<Param>;
 
 Param: Param = {
-    "int" <name: IDENT> <ardim: ("[]" <("[" <ConstExpr> "]")*>)> => Param{  // ? means optional
+    "int" <name: IDENT> <ardim: ("[""]" <("[" <ConstExpr> "]")*>)> => Param{  // ? means optional cant be "[]" cause it will be parsed as a token but [ ] is legal
         param_id: name,
         param_dims: Some(ardim),  // [] => Vec::new(), [][1][2][3] => Vec::(1,2,3);
     },
