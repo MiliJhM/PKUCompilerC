@@ -187,8 +187,8 @@ impl FunctionInterface{
                 else {
                     new_slot = Some(ValueSlot::new_stackslot(self.sp_offset() + val.stackslot_offset().unwrap() - 4 - self.allocated_stacksize, val.is_ptr()));
                 }
-                dbg!(&val);
-                dbg!(&new_slot);
+                //dbg!(&val);
+                //dbg!(&new_slot);
                 new_slot
             }
             None => None,

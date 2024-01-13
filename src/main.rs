@@ -24,7 +24,7 @@ fn main() -> Result<()> {
     let input = read_to_string(input)?;
     let comp_init = ast::grammar::CompileInitParser::new().parse(&input);
     let comp_init = comp_init.unwrap();
-    println!("{:?}", comp_init);
+    // println!("{:?}", comp_init);
     let program = koopa_generator::generate_program(&comp_init).unwrap();
 
     let mode = match mode.as_str() {

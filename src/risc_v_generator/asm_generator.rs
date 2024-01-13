@@ -98,7 +98,7 @@ impl<'file> Writer<'file> {
             writeln!(self.f, "  sw {}, {}({})", rs, offset, rd)?;
         }
         else {
-            self.addi(&self.reg_temp, rs, offset)?;
+            self.addi(&self.reg_temp, rd, offset)?;
             writeln!(self.f, "  sw {}, 0({})", rs, &self.reg_temp)?;
         }
         // self.f.write_fmt(format_args!("sw {}, {}({})\n", rs, offset, rd))?;
@@ -121,7 +121,7 @@ impl<'file> Writer<'file> {
         }
         else {
             self.li(&self.reg_temp, imm)?;
-            writeln!(self.f, "  {} {}, {}, {}", op, rd, &self.reg_temp, 0)?;
+            self.op2(op, rd, rs1, &self.reg_temp)?;
         }
         // self.f.write_fmt(format_args!("{} {}, {}, {}\n", op, rd, rs1, imm))?;
         return Ok(());

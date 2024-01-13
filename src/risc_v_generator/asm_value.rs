@@ -19,7 +19,9 @@ impl<'file> AsmValue {
         }
     }
 
-    pub fn normal_to_reg(&self, f: &'file mut Writer, reg: &str) -> Result<()> {
+    pub fn normal_to_reg(&self, f: &'file mut Writer, reg: &'static str) -> Result<()> {
+        let res = f.reg_temp;
+        f.update_temp_reg(reg);
         match self{
             Self::Global(name) => {
                 f.la(reg, name.as_str());
@@ -34,10 +36,14 @@ impl<'file> AsmValue {
             }
             _ => unreachable!()
         };
+        f.update_temp_reg(res);
         Ok(())
     }
 
-    pub fn load_addr_to_reg(&self, f: &'file mut Writer, reg: &str) -> Result<()> {
+    pub fn load_addr_to_reg(&self, f: &'file mut Writer, reg: &'static str) -> Result<()> {
+        let res = f.reg_temp;
+        f.update_temp_reg(reg);
+
         match self{
             Self::Global(name) => {
                 f.la(reg, name.as_str());
@@ -48,10 +54,14 @@ impl<'file> AsmValue {
             }
             _ => unreachable!()
         };
+        f.update_temp_reg(res);
         Ok(())
     }
 
-    pub fn arg_to_reg(&self, f: &'file mut Writer, reg: &str, spoff:usize) -> Result<()> {
+    pub fn arg_to_reg(&self, f: &'file mut Writer, reg: &'static str, spoff:usize) -> Result<()> {
+        let res = f.reg_temp;
+        f.update_temp_reg(reg);
+
         match self{
             Self::FuncArg(index) => {
                 if *index < 8 {
@@ -64,11 +74,16 @@ impl<'file> AsmValue {
             },
             _ => unreachable!()
         };
+        f.update_temp_reg(res);
         Ok(())
     }
 
-    pub fn reload_value_from_reg(&self, f: &'file mut Writer, reg: &str, temp_reg: &str) -> Result<()> {
+    pub fn reload_value_from_reg(&self, f: &'file mut Writer, reg: &str, temp_reg: &'static str) -> Result<()> {
+        let res = f.reg_temp;
+        f.update_temp_reg(temp_reg);
         match self{
+
+
             Self::Global(name) => {
                 f.la(temp_reg, name);
                 f.sw(reg, temp_reg, 0);
@@ -88,6 +103,7 @@ impl<'file> AsmValue {
             Self::Void => {}
             _ => unreachable!()
         };
+        f.update_temp_reg(res);
         Ok(())
     }
 }

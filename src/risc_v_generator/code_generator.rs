@@ -32,7 +32,7 @@ impl<'prog, 'file> AsmGenerator<'prog, 'file> for Program{
     type Out = ();
     
     fn generate(&self, program: &mut ProgramManager<'prog>, f: &mut Writer<'file>) -> Result<Self::Out>{
-
+        Type::set_ptr_size(4);
         if !self.inst_layout().is_empty()
         {
             let file_m = f.file_mut();
@@ -204,6 +204,7 @@ impl<'prog, 'file> AsmGenerator<'prog, 'file> for Store {
     type Out = ();
 
     fn generate(&self, program: &mut ProgramManager<'prog>, f: &mut Writer<'file>) -> Result<Self::Out> {
+        writeln!(f.file_mut(), "    # Store");
         let spoff = program.cur_func().unwrap().sp_offset();
         let val = self.value().generate(program, f)?;
         match val {
@@ -212,13 +213,16 @@ impl<'prog, 'file> AsmGenerator<'prog, 'file> for Store {
         }
         let dst = self.dest().generate(program, f)?;
         if dst.is_ptr() {
-            dst.normal_to_reg(f, "t1")?;
             f.update_temp_reg("t2");
+            dst.normal_to_reg(f, "t1")?;
+
             f.sw("t0", "t1", 0);
             f.update_temp_reg("t0");
         }
         else {
+            f.update_temp_reg("t2");
             dst.reload_value_from_reg(f, "t0", "t1");
+            f.update_temp_reg("t0");
         }
         Ok(())
     }
@@ -281,31 +285,6 @@ impl<'prog, 'file> AsmValueGenerator<'prog, 'file> for Load {
             f.lw("t0", "t0", 0)?;
             f.update_temp_reg("t0");
         }
-        AsmValue::LocalVar(program.cur_func().unwrap().stack_offset_resize(value).unwrap()).reload_value_from_reg(f, "t0", "t1")
-    }
-}
-
-impl<'prog, 'file> AsmValueGenerator<'prog, 'file> for GetPtr {
-    type Out = ();
-
-    fn generate(&self, program: &mut ProgramManager<'prog>, f: &mut Writer<'file>,  value: &ValueData) -> Result<Self::Out> {
-        let src = self.src().generate(program, f)?;
-        if src.is_ptr(){
-            src.normal_to_reg(f, "t0");
-        }
-        else {
-            src.load_addr_to_reg(f, "t0");
-        }
-        self.index().generate(program, f)?.normal_to_reg(f, "t1")?;
-        let size = match value.ty().kind() {
-            TypeKind::Pointer(b) => b.size(),
-            _ => unreachable!()
-        };
-        f.update_temp_reg("t2");
-        f.muli("t1", "t1", size as i32);
-        f.op2("add", "t0", "t0", "t1");
-        f.update_temp_reg("t0");
-
         match program.cur_func().unwrap().stack_offset_resize(value) {
             Some(v) => AsmValue::LocalVar(v).reload_value_from_reg(f, "t0", "t1"),
             None => AsmValue::Void.reload_value_from_reg(f, "t0", "t1")
@@ -314,10 +293,11 @@ impl<'prog, 'file> AsmValueGenerator<'prog, 'file> for GetPtr {
     }
 }
 
-impl<'prog, 'file> AsmValueGenerator<'prog, 'file> for GetElemPtr {
+impl<'prog, 'file> AsmValueGenerator<'prog, 'file> for GetPtr {
     type Out = ();
 
     fn generate(&self, program: &mut ProgramManager<'prog>, f: &mut Writer<'file>,  value: &ValueData) -> Result<Self::Out> {
+        writeln!(f.file_mut(), "    # Ptr");
         let src = self.src().generate(program, f)?;
         if src.is_ptr(){
             src.normal_to_reg(f, "t0");
@@ -333,12 +313,44 @@ impl<'prog, 'file> AsmValueGenerator<'prog, 'file> for GetElemPtr {
         f.update_temp_reg("t2");
         f.muli("t1", "t1", size as i32);
         f.op2("add", "t0", "t0", "t1");
-        f.update_temp_reg("t0");
+
 
         match program.cur_func().unwrap().stack_offset_resize(value) {
             Some(v) => AsmValue::LocalVar(v).reload_value_from_reg(f, "t0", "t1"),
             None => AsmValue::Void.reload_value_from_reg(f, "t0", "t1")
         };
+        f.update_temp_reg("t0");
+        Ok(())
+    }
+}
+
+impl<'prog, 'file> AsmValueGenerator<'prog, 'file> for GetElemPtr {
+    type Out = ();
+
+    fn generate(&self, program: &mut ProgramManager<'prog>, f: &mut Writer<'file>,  value: &ValueData) -> Result<Self::Out> {
+        writeln!(f.file_mut(), "    # Elemptr");
+        let src = self.src().generate(program, f)?;
+        if src.is_ptr(){
+            src.normal_to_reg(f, "t0");
+        }
+        else {
+            src.load_addr_to_reg(f, "t0");
+        }
+        self.index().generate(program, f)?.normal_to_reg(f, "t1")?;
+        let size = match value.ty().kind() {
+            TypeKind::Pointer(b) => b.size(),
+            _ => unreachable!()
+        };
+        f.update_temp_reg("t2");
+        f.muli("t1", "t1", size as i32);
+        f.op2("add", "t0", "t0", "t1");
+
+
+        match program.cur_func().unwrap().stack_offset_resize(value) {
+            Some(v) => AsmValue::LocalVar(v).reload_value_from_reg(f, "t0", "t1"),
+            None => AsmValue::Void.reload_value_from_reg(f, "t0", "t1")
+        };
+        f.update_temp_reg("t0");
         Ok(())
     }
 }
