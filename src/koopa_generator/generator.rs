@@ -72,7 +72,7 @@ impl CompileInit{
     fn load_lib_func(&self, namespace: &mut Namesp, program: &mut Program){
         let mut create_lib_func = |name, params_type, return_type| {
             let new_func = program.new_func(FunctionData::new_decl( format!("@{}", name), params_type, return_type));
-            namespace.new_func(name, new_func).unwrap();
+            namespace.new_func(name, new_func);
         };
         create_lib_func("getint", Vec::new(), Type::get_i32());
         create_lib_func("getch", Vec::new(), Type::get_i32());
@@ -140,7 +140,7 @@ impl GenerateKoopa for ConstDecl {
 fn dim_vec_to_type(dims: &Vec<ConstExpr>, namespace: &mut Namesp) -> CResult<Type> {
     dims.iter().rev()
     .fold(Ok(Type::get_i32()), |acc, dim| {
-        let len = dim.const_eval(namespace).unwrap();
+        let len = dim.const_eval(namespace).unwrap_or_default(); //debug
         if len>=1 {
             Ok(Type::get_array(acc?, len as usize))
         }
@@ -211,7 +211,7 @@ impl GenerateKoopa for ConstInitVal {
 
     fn generate(&self, namespace: &mut Namesp, program: &mut Program) -> CResult<Self::Out> {
         let result = match self{
-            Self::Expr(expr) => InitValue::Const(expr.const_eval(namespace).unwrap()),
+            Self::Expr(expr) => InitValue::Const(expr.const_eval(namespace).unwrap_or_default()),
 
             Self::List(list) => {
                 let mut result = Vec::new();
