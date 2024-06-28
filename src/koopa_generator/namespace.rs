@@ -165,10 +165,10 @@ impl InitValue {
     }
 
     pub fn array_linearize(&self, ty: &Type) -> CResult<Vec<InitValue>> {
-        println!("before linearize: {:?}", &self);
+        //println!("before linearize: {:?}", &self);
         let mut result = Vec::new();
         let mut shape = self.get_array_shape(ty)?;
-        dbg!(shape.clone());
+        //dbg!(shape.clone());
         shape.reverse();
         
         let mut dim_len = shape.len();
@@ -222,7 +222,7 @@ impl InitValue {
             init_num+=1;
             
         }
-        println!("after linearize: {:?}", &result);
+        //println!("after linearize: {:?}", &result);
         return Ok(result);
     }
 

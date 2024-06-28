@@ -891,7 +891,7 @@ impl GenerateKoopa for LVal{
             },
             NamespValue::Var(v) => *v,
         };
-        let mut is_array_param = false; // only one case: array int a[b][c] as function param int a[][c]
+        let mut pptr = false; // only one case: array int a[b][c] as function param int a[][c]
         let mut dims = 0;
         match get_type(namespace, program, val).kind(){
             TypeKind::Pointer(unit_ty) => {
@@ -902,7 +902,7 @@ impl GenerateKoopa for LVal{
                             unit_ty
                         },
                         TypeKind::Pointer(unit_ty) => {
-                            is_array_param = true;
+                            pptr = true;
                             unit_ty
                         },
                         _ => break,
@@ -912,7 +912,7 @@ impl GenerateKoopa for LVal{
             }
             _ => {dims = 0;},
         };
-        if is_array_param{ // transform param array to array pointer
+        if pptr { // transform param array to array pointer
             let func_interface = namespace.get_cur_func_interf()?;
             val = func_interface.value_builder(program).load(val);
             func_interface.push_inst_to_bb(program, func_interface.current_bb(), val);
@@ -926,7 +926,7 @@ impl GenerateKoopa for LVal{
             let ind_int = ind.generate(namespace, program)?.into_value_or_ptr(program, namespace)?;
             let func_interface = namespace.get_cur_func_interf()?;
 
-            val = if is_array_param && i == 0{
+            val = if pptr && i == 0{
                 func_interface.value_builder(program).get_ptr(val, ind_int)
             }
             else{
@@ -938,7 +938,7 @@ impl GenerateKoopa for LVal{
         if dims == 0 {
             return Ok(ExprValue::VarPtr(val));
         }
-        else if !is_array_param || !self.inds.is_empty() { // one-dim array param
+        else if !pptr || !self.inds.is_empty() { // one-dim array param
             let func_interface = namespace.get_cur_func_interf()?;
             let ir_zero = func_interface.value_builder(program).integer(0);
             val = func_interface.value_builder(program).get_elem_ptr(val, ir_zero);
